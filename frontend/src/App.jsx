@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import TinderCard from "react-tinder-card";
-import "./App.css";
-import { createGroup, joinGroup, fetchItems, submitRating, getBest } from "./api";
+import "../styles/App.css";
+import { createGroup, joinGroup, fetchItems, submitRating, getBest } from "./services/api";
 
 export default function App() {
   const [groupId, setGroupId] = useState("");
