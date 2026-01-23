@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = "https://career-launch-group2-project.onrender.com";
 
 export async function createGroup() {
   const res = await fetch(`${API_BASE}/groups`, {

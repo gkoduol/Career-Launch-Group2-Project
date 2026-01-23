@@ -1,13 +1,3 @@
-# api_server.py
-# Run with:
-#   python3 -m uvicorn api_server:app --reload --port 8000
-#
-# Requires:
-#   fastapi uvicorn python-dotenv requests
-#
-# .env at project root:
-#   YELP_API_KEY=your_key_here
-
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -20,7 +10,6 @@ load_dotenv()
 
 app = FastAPI(title="Group Restaurant Recommender API")
 
-# Allow React dev server + (optional) GitHub Pages later
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,8 +28,7 @@ if not YELP_API_KEY:
     print("WARNING: YELP_API_KEY is not set. Add it to your .env file.")
 
 # ------------------------------------------------------------
-# In-memory storage (simple for prototype)
-# Later you can swap this to MongoDB.
+# In-memory storage
 # ------------------------------------------------------------
 GROUPS: Dict[str, Dict[str, Any]] = {}
 
@@ -84,9 +72,7 @@ def normalize_business(b: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# ------------------------------------------------------------
 # API endpoints
-# ------------------------------------------------------------
 
 @app.get("/")
 def root():
@@ -152,7 +138,6 @@ def add_rating(group_id: str, payload: Dict[str, Any] = Body(...)):
             "user_id": payload["user_id"],
             "item_id": payload["item_id"],
             "rating": r,
-            # optional: snapshot lets best endpoint return restaurant info without refetch
             "item_snapshot": payload.get("item_snapshot"),
         }
     )
