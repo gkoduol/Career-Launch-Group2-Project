@@ -22,6 +22,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+)
 
 
 YELP_API_KEY = os.getenv("YELP_API_KEY")
