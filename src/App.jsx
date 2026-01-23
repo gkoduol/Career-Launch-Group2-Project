@@ -12,49 +12,77 @@ export default function App() {
 
   const [cards, setCards] = useState([]);
   const [index, setIndex] = useState(0);
+
   const [status, setStatus] = useState("Create or join a group to start.");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [best, setBest] = useState(null);
 
   const current = useMemo(() => cards[index], [cards, index]);
 
+  function setBusy(message) {
+    setIsLoading(true);
+    setStatus(message);
+  }
+  function setIdle(message) {
+    setIsLoading(false);
+    setStatus(message);
+  }
+
   async function handleCreateGroup() {
-    setStatus("Creating group...");
+    setBest(null);
+    setBusy("Creating group…");
     try {
       const data = await createGroup();
       const id = (data.group_id || data.groupId || "").toUpperCase();
-      if (!id) return setStatus("Backend response missing group_id.");
+      if (!id) return setIdle("Backend response missing group_id.");
       setGroupId(id);
-      setStatus(`Created group: ${id}`);
+      setIdle(`Created group ${id}. Share this code with friends.`);
     } catch {
-      setStatus("Create group failed (backend not live yet).");
+      setIdle("Create group failed. Check backend / CORS.");
     }
   }
 
   async function handleJoinGroup() {
-    if (!groupId.trim()) return setStatus("Enter a group code first.");
-    setStatus("Joining group...");
+    setBest(null);
+    if (!groupId.trim()) return setIdle("Enter a group code first.");
+    setBusy("Joining group…");
     try {
       const data = await joinGroup(groupId.trim(), userId);
-      if (data.error) return setStatus(data.error);
-      setStatus(`Joined ${groupId.trim()} as ${userId}`);
+      if (data.error) return setIdle(data.error);
+      setIdle(`Joined ${groupId.trim()} as ${userId}.`);
     } catch {
-      setStatus("Join failed (backend not live yet).");
+      setIdle("Join failed. Check backend / CORS.");
     }
   }
 
   async function loadRestaurants() {
-    if (!groupId.trim()) return setStatus("Enter a group code first.");
-    if (!location.trim()) return setStatus("Enter a location first.");
+    setBest(null);
+    if (!groupId.trim()) return setIdle("Enter a group code first.");
+    if (!location.trim()) return setIdle("Enter a location first.");
 
-    setStatus("Loading restaurants...");
+    setBusy("Loading restaurants…");
     setIndex(0);
-    try {
-      const data = await fetchItems(groupId.trim(), location.trim(), term.trim() || "restaurants");
-      if (data.error) return setStatus(data.error);
 
-      setCards(data.items || []);
-      setStatus(`Loaded ${(data.items || []).length} restaurants`);
+    try {
+      const data = await fetchItems(
+        groupId.trim(),
+        location.trim(),
+        term.trim() || "restaurants"
+      );
+      if (data.error) return setIdle(data.error);
+
+      const items = data.items || [];
+      setCards(items);
+      setIdle(
+        items.length
+          ? `Loaded ${items.length} places. Start rating!`
+          : "No results found for that search."
+      );
     } catch {
-      setStatus("Load failed (backend not live yet).");
+      setIdle("Load failed. Check backend / CORS.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -68,98 +96,190 @@ export default function App() {
       item_snapshot: current,
     };
 
-    setStatus(`Sending rating ${rating}...`);
-
+    setBusy(`Sending rating ${rating}…`);
     try {
       const res = await submitRating(groupId.trim(), payload);
-      if (res?.error) setStatus(res.error);
-      else setStatus(`Rated ${current.name}: ${rating}`);
+      if (res?.error) setIdle(res.error);
+      else setIdle(`Rated ${current.name}: ${rating}/5`);
     } catch {
-      setStatus("Rating send failed (backend not live yet).");
+      setIdle("Rating send failed. Check backend / CORS.");
+    } finally {
+      setIndex((i) => i + 1);
+      setIsLoading(false);
     }
-
-    setIndex((i) => i + 1);
   }
 
   async function handleBest() {
-    if (!groupId.trim()) return setStatus("Enter a group code first.");
-    setStatus("Getting best match...");
+    setBest(null);
+    if (!groupId.trim()) return setIdle("Enter a group code first.");
+    setBusy("Finding best match…");
     try {
       const data = await getBest(groupId.trim());
-      if (data.error) return setStatus(data.error);
-      setStatus(`Best match ready. (Backend returned: ${data.best?.item?.name || "ok"})`);
+      if (data.error) return setIdle(data.error);
+
+      setBest(data.best?.item || null);
+      setIdle("Best match selected!");
     } catch {
-      setStatus("Best match failed (backend not live yet).");
+      setIdle("Best match failed. Check backend / CORS.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
+  const canJoin = !!groupId.trim() && !!userId.trim();
+  const canLoad = !!groupId.trim() && !!location.trim();
+
   return (
     <div className="page">
-      <h1>🍽️ Restaurant Swipe</h1>
-
-      <div className="controls">
-        <div className="buttonRow">
-          <button onClick={handleCreateGroup}>Create Group</button>
-          <button onClick={handleJoinGroup}>Join Group</button>
+      <header className="header">
+        <div className="titleBlock">
+          <h1>Restaurant Swipe</h1>
+          <p>Rate options individually, then compute the best match for the group.</p>
         </div>
 
-        <input
-          placeholder="Group Code (e.g. ABCD12)"
-          value={groupId}
-          onChange={(e) => setGroupId(e.target.value.toUpperCase())}
-        />
-        <input placeholder="User ID" value={userId} onChange={(e) => setUserId(e.target.value)} />
-        <input
-          placeholder="Location (City, State or ZIP)"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-        <input
-          placeholder="What are you craving? (thai, sushi, pizza...)"
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-        />
+        {groupId.trim() ? (
+          <div className="groupPill">Group: {groupId.trim()}</div>
+        ) : null}
+      </header>
 
-        <button onClick={loadRestaurants}>Load Restaurants</button>
-      </div>
-
-      <div className="status">{status}</div>
-
-      <div className="card-container">
-        {current ? (
-          <TinderCard key={current.item_id || current.id} preventSwipe={["up", "down"]}>
-            <div className="card">
-              {current.image_url && <img src={current.image_url} alt={current.name} />}
-              <h2>{current.name}</h2>
-              <p>
-                ⭐ {current.rating ?? "—"} {current.review_count ? `(${current.review_count})` : ""}{" "}
-                {current.price ? `· ${current.price}` : ""}
-              </p>
-              <p className="address">{current.address || ""}</p>
-              {current.url && (
-                <a className="link" href={current.url} target="_blank" rel="noreferrer">
-                  Open listing
-                </a>
-              )}
-            </div>
-          </TinderCard>
-        ) : (
-          <p className="done">{cards.length ? "No more restaurants." : "Load restaurants to start."}</p>
-        )}
-      </div>
-
-      {current && (
-        <div className="rating-buttons">
-          {[1, 2, 3, 4, 5].map((r) => (
-            <button key={r} onClick={() => rate(r)}>
-              {r}
+      <section className="panel">
+        <div className="controls">
+          <div className="buttonRow">
+            <button onClick={handleCreateGroup} disabled={isLoading}>
+              Create Group
             </button>
-          ))}
-          <button className="bestBtn" onClick={handleBest}>
-            Get Best
+            <button onClick={handleJoinGroup} disabled={!canJoin || isLoading}>
+              Join Group
+            </button>
+          </div>
+
+          <div className="formGrid">
+            <input
+              placeholder="Group Code (e.g. ABCD12)"
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value.toUpperCase())}
+            />
+
+            <input
+              placeholder="User ID (e.g. user_1)"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+            />
+
+            <input
+              className="full"
+              placeholder="Location (City, State or ZIP)"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+
+            <input
+              className="full"
+              placeholder="What are you craving? (thai, sushi, pizza...)"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+            />
+          </div>
+
+          <button
+            className="primaryBtn"
+            onClick={loadRestaurants}
+            disabled={!canLoad || isLoading}
+          >
+            {isLoading ? "Loading…" : "Load Restaurants"}
           </button>
+
+          <div className="status">{status}</div>
         </div>
-      )}
+      </section>
+
+      <section className="main">
+        <div className="card-container">
+          {current ? (
+            <TinderCard
+              key={current.item_id || current.id}
+              preventSwipe={["up", "down"]}
+            >
+              <div className="card">
+                {current.image_url ? (
+                  <img src={current.image_url} alt={current.name} />
+                ) : null}
+
+                <div className="content">
+                  <h2>{current.name}</h2>
+
+                  <p>
+                    ⭐ {current.rating ?? "—"}{" "}
+                    {current.review_count ? `(${current.review_count})` : ""}{" "}
+                    {current.price ? `· ${current.price}` : ""}
+                  </p>
+
+                  {current.address ? (
+                    <p className="address">{current.address}</p>
+                  ) : null}
+
+                  {current.url ? (
+                    <a
+                      className="link"
+                      href={current.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View on Yelp →
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </TinderCard>
+          ) : (
+            <p className="done">
+              {cards.length ? "No more restaurants." : "Load restaurants to start."}
+            </p>
+          )}
+        </div>
+
+        {current ? (
+          <div className="rating-buttons">
+            {[1, 2, 3, 4, 5].map((r) => (
+              <button key={r} onClick={() => rate(r)} disabled={isLoading}>
+                {r}
+              </button>
+            ))}
+            <button className="bestBtn" onClick={handleBest} disabled={isLoading}>
+              Get Best Match
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {best ? (
+        <div
+          className="modalBackdrop"
+          onClick={() => setBest(null)}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="content">
+              <h2 style={{ marginTop: 0 }}>Best Match</h2>
+              <p style={{ marginTop: 6 }}>
+                {best.name ? best.name : "Best match selected (no snapshot available)."}
+              </p>
+              {best.url ? (
+                <a className="link" href={best.url} target="_blank" rel="noreferrer">
+                  View on Yelp →
+                </a>
+              ) : null}
+
+              <div style={{ marginTop: 14 }}>
+                <button className="primaryBtn" onClick={() => setBest(null)}>
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
