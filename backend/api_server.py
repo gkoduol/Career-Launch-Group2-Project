@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from typing import Dict, Any
 import os
 import requests
 import random
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 app = FastAPI(title="Group Restaurant Recommender API")
 
