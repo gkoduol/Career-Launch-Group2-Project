@@ -15,21 +15,21 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "https://gkoduol.github.io",
     ],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+
 
 YELP_API_KEY = os.getenv("YELP_API_KEY")
 if not YELP_API_KEY:
     # Server will still start, but Yelp fetch will fail until .env is set
     print("WARNING: YELP_API_KEY is not set. Add it to your .env file.")
 
-# ------------------------------------------------------------
 # In-memory storage
-# ------------------------------------------------------------
 GROUPS: Dict[str, Dict[str, Any]] = {}
 
 
