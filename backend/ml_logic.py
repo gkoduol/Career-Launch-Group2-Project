@@ -126,3 +126,7 @@ print(test_user_preference_embedding)
 print(geometric_center(test_user_preference_embedding))
 
 response = supabase.table("groups").insert({"id": "300", "members": ["Aidan"]}).execute()  
+# Temporary test: Comment out the city filter to see if data exists at all
+query = supabase.table("businesses").select("*")
+# if city:
+#    query = query.ilike("city", f"%{city}%")

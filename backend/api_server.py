@@ -41,7 +41,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
-        "http://localhost:5173",
+        "http://localhost:517",
         "http://127.0.0.1:5174",
         "https://gkoduol.github.io",
     ],
@@ -151,19 +151,48 @@ def join_group(group_id: str, user_id: str):
 
 
 @app.get("/groups/{group_id}/items")
-def get_items(group_id: str, location: str, term: str = "restaurants"):
-    # Check Supabase instead of GROUPS dict
-    group_check = supabase.table("groups").select("id").eq("id", group_id).execute()
-    if not group_check.data:
-        raise HTTPException(status_code=404, detail="Group not found")
+def get_items(group_id: str, location: Optional[str] = None, term: Optional[str] = "restaurants"):
+    print(f"DEBUG: Searching DB for City: {location}")
+    
+    try:
+        # 1. Verify group
+        group_check = supabase.table("groups").select("id").eq("id", group_id).execute()
+        if not group_check.data:
+            raise HTTPException(status_code=404, detail="Group not found")
 
-    err, businesses = yelp_search(location, term, limit=25)
-    if err:
-        return err
+        # 2. Query your 'businesses' table using the correct column names from your images
+        query = supabase.table("restaurants").select("business_id, name, address, city, stars")
+        
+        if location:
+            # We use the 'city' column from your screenshot
+            query = query.ilike("city", f"%{location}%")
+        
+        res = query.limit(20).execute()
+        print(f"DEBUG: Found {len(res.data)} restaurants in {location}")
 
-    items = [normalize_business(b) for b in businesses]
-    return {"items": items}
+        # 3. Format the data for your existing normalize_business function
+        translated_items = []
+        for b in res.data:
+            yelp_style_data = {
+                "id": b.get("business_id"), # Uses business_id from your image
+                "name": b.get("name"),
+                "rating": b.get("stars"),     # Uses stars from your image
+                "review_count": 0,           # Defaulted to save space
+                "price": "$$",               # Defaulted
+                "url": f"https://www.yelp.com/biz/{b.get('business_id')}",
+                "image_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500",
+                "location": {
+                    "display_address": [b.get("address", ""), b.get("city", "")]
+                }
+            }
+            translated_items.append(normalize_business(yelp_style_data))
 
+        return {"items": translated_items}
+        
+    except Exception as e:
+        print(f"🔥 BACKEND ERROR: {str(e)}")
+        # Returning the error as JSON helps the frontend not crash with a CORS error
+        return {"error": str(e), "items": []}
 
 @app.post("/groups/{group_id}/ratings")
 def add_rating(group_id: str, payload: RatingPayload):
