@@ -38,3 +38,24 @@ export async function getBest(groupId) {
   const res = await fetch(`${API_BASE}/groups/${groupId}/best`);
   return res.json();
 }
+
+export const finishUser = async (groupId, userId) => {
+  const response = await fetch(`${API_BASE}/groups/${groupId}/finish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }), // Keys must match the Python model exactly
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error("Server validation error:", errorData);
+    throw new Error("Validation failed");
+  }
+  
+  return response.json();
+};
+
+export const getGroupStatus = async (groupId) => {
+  const response = await fetch(`${API_BASE}/groups/${groupId}/status`);
+  return response.json();
+};
