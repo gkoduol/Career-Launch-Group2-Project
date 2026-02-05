@@ -158,7 +158,7 @@ export default function App() {
     <div className="page">
       <header className="header">
         <div className="titleBlock">
-          <h1>Restaurant Swiper</h1>
+          <h1>TasteMatch</h1>
         </div>
         {groupId && <div className="groupPill">Group: {groupId}</div>}
       </header>
