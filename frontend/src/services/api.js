@@ -1,5 +1,5 @@
-const API_BASE = "http://127.0.0.1:8000";
-//const API_BASE = "https://career-launch-group2-project.onrender.com";
+//const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://restaurant-swiper-api.onrender.com";
 
 export async function createGroup() {
   const res = await fetch(`${API_BASE}/groups`, {
