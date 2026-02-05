@@ -117,7 +117,7 @@ export default function App() {
     
     // Build user preference vector from their likes
     try {
-      await fetch(`${API_BASE}/groups/${groupId.trim()}/user-vector`, {
+      await fetch(`${API_URL}/groups/${groupId.trim()}/user-vector`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
@@ -143,7 +143,7 @@ export default function App() {
     setBusy("Finding best match with ML...");
     try {
       // Call the ML endpoint instead of the old one
-      const response = await fetch(`${API_BASE}/groups/${groupId.trim()}/best-ml`);
+      const response = await fetch(`${API_URL}/groups/${groupId.trim()}/best-ml`);
       const data = await response.json();
       
       setBest(data.best?.item || null);
