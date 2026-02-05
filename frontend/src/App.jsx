@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import TinderCard from "react-tinder-card";
 import "../styles/App.css";
 import { createGroup, joinGroup, fetchItems, submitRating, getBest, finishUser, getGroupStatus } from "./services/api";
+import { API_URL } from './config'; 
 
 export default function App() {
   const [groupId, setGroupId] = useState("");
@@ -116,7 +117,7 @@ export default function App() {
     
     // Build user preference vector from their likes
     try {
-      await fetch(`http://localhost:8000/groups/${groupId.trim()}/user-vector`, {
+      await fetch(`${API_BASE}/groups/${groupId.trim()}/user-vector`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
@@ -142,7 +143,7 @@ export default function App() {
     setBusy("Finding best match with ML...");
     try {
       // Call the ML endpoint instead of the old one
-      const response = await fetch(`http://localhost:8000/groups/${groupId.trim()}/best-ml`);
+      const response = await fetch(`${API_BASE}/groups/${groupId.trim()}/best-ml`);
       const data = await response.json();
       
       setBest(data.best?.item || null);
