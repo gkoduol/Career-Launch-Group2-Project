@@ -17,3 +17,4 @@ npm install --legacy-peer-deps
 
 4. Run Everything
 bash dev-all.sh (note if dev-all.sh file in CLRF and running it doesn't work switch to LF)
+

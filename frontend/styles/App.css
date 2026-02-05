@@ -32,6 +32,7 @@ body {
       transparent 55%
     ),
     var(--bg);
+  min-height: 100vh;
 }
 
 #root {
@@ -40,9 +41,9 @@ body {
 
 .page {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 28px 18px 40px;
+  padding: 20px 16px 30px;
 }
 
 .header {
@@ -50,58 +51,59 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .titleBlock h1 {
   margin: 0;
-  font-size: clamp(42px, 5vw, 64px);
+  font-size: clamp(36px, 5vw, 54px);
   letter-spacing: -0.04em;
   line-height: 1.05;
 }
 
 .titleBlock p {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .groupPill {
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  padding: 10px 14px;
+  padding: 8px 14px;
   border-radius: 999px;
   color: var(--muted);
   font-weight: 600;
+  font-size: 14px;
   white-space: nowrap;
 }
 
 .panel {
-  margin-top: 18px;
+  margin-top: 12px;
   background: var(--card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 20px;
   backdrop-filter: blur(10px);
 }
 
 .controls {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .buttonRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .formGrid .full {
@@ -110,13 +112,13 @@ body {
 
 input {
   width: 100%;
-  height: 46px;
+  height: 44px;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.92);
   color: #000;
-  font-size: 16px;
+  font-size: 15px;
   outline: none;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03) inset;
 }
@@ -131,14 +133,14 @@ input:focus {
 }
 
 button {
-  height: 46px;
+  height: 44px;
   padding: 0 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: #fff;
   color: var(--text);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
@@ -164,115 +166,186 @@ button:active {
 }
 
 .status {
-  margin-top: 14px;
-  padding: 14px 14px;
-  border-radius: 16px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.65);
   border: 1px dashed rgba(15, 23, 42, 0.18);
   color: rgba(15, 23, 42, 0.78);
   text-align: left;
   font-weight: 600;
+  font-size: 14px;
 }
 
+/* IMPROVED CARD CONTAINER - Less empty space */
 .card-container {
-  margin-top: 18px;
-  min-height: 360px;
+  margin-top: 20px;
+  min-height: 500px;
   display: grid;
   place-items: center;
 }
 
+/* IMPROVED CARD - Bigger, better aspect ratio */
 .card {
-  width: min(520px, 92vw);
-  border-radius: 22px;
+  width: min(680px, 95vw);
+  border-radius: 24px;
   overflow: hidden;
   border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   background: var(--card-solid);
   text-align: left;
 }
 
+/* FIXED IMAGE ASPECT RATIO - No more cut off! */
 .card img {
   width: 100%;
-  height: 240px;
+  aspect-ratio: 16 / 10; /* Consistent ratio, no cutting */
   object-fit: cover;
   display: block;
+  background: #f0f0f0; /* Fallback while loading */
 }
 
 .card .content {
-  padding: 14px 16px 16px;
+  padding: 18px 20px 20px;
 }
 
 .card h2 {
-  margin: 4px 0 6px;
-  font-size: 22px;
+  margin: 0 0 8px;
+  font-size: 26px;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.card p {
-  margin: 6px 0;
-  color: rgba(15, 23, 42, 0.75);
+.card .details {
+  margin: 8px 0;
+  color: rgba(15, 23, 42, 0.70);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .address {
   color: rgba(15, 23, 42, 0.60);
   font-size: 14px;
 }
+
 .category-tags {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin: 8px 0;
+  margin: 10px 0;
 }
 
 .category-pill {
-  background: #f0f0f0;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 0.85rem;
-  color: #666;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.rating-buttons {
+/* YELP LINK STYLING */
+.yelp-link {
+  display: inline-block;
   margin-top: 12px;
+  padding: 10px 18px;
+  background: #d32323;
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(211, 35, 35, 0.3);
+}
+
+.yelp-link:hover {
+  background: #b91d1d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(211, 35, 35, 0.4);
+}
+
+/* RATING BUTTONS - Bigger and better */
+.rating-buttons {
+  margin-top: 16px;
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
 .rating-buttons button {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border-radius: 999px;
+  font-size: 28px;
   font-weight: 800;
-  color: #000;
   background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  transition: all 0.2s;
 }
 
-@media (max-width: 720px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .buttonRow {
-    grid-template-columns: 1fr;
-  }
-
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .groupPill {
-    align-self: flex-start;
-  }
+.rating-buttons .dislike-btn:hover {
+  background: #fee;
+  transform: scale(1.1);
 }
 
-/* --- Winner Popup Styles (MOVED OUTSIDE MEDIA QUERY) --- */
+.rating-buttons .like-btn:hover {
+  background: #efe;
+  transform: scale(1.1);
+}
 
+/* DONE SCREEN IMPROVEMENTS */
+.done-screen {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.waiting-vibe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.loader {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(37, 99, 235, 0.2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.waiting-vibe p {
+  font-size: 18px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.finished-celebration {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.finished-celebration p {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0;
+}
+
+/* WINNER MODAL */
 .modalBackdrop {
   position: fixed;
   inset: 0;
@@ -282,12 +355,13 @@ button:active {
   align-items: center;
   justify-content: center;
   z-index: 10000;
+  padding: 20px;
 }
 
 .modal {
   background: white;
-  width: 90%;
-  max-width: 420px;
+  width: 100%;
+  max-width: 500px;
   border-radius: 32px;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -300,19 +374,11 @@ button:active {
 }
 
 .modal-content {
-  padding: 30px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-}
-
-.winner-image {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 20px;
-  margin: 15px 0;
 }
 
 .winner-tag {
@@ -321,5 +387,104 @@ button:active {
   font-size: 12px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.winner-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 20px;
+  margin: 16px 0;
+}
+
+.modal-content h2 {
+  margin: 12px 0;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.modal-content .category {
+  color: var(--muted);
+  font-size: 16px;
+  margin: 8px 0;
+}
+
+.modal-content .address {
+  font-size: 14px;
+  margin: 8px 0 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.modal-actions a,
+.modal-actions button {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+}
+
+.secondaryBtn {
+  background: #f1f5f9;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.secondaryBtn:hover {
+  background: #e2e8f0;
+}
+
+/* RESPONSIVE */
+@media (max-width: 720px) {
+  .page {
+    padding: 16px 12px 24px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .titleBlock h1 {
+    font-size: 32px;
+  }
+
+  .buttonRow,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    width: 100%;
+  }
+
+  .card h2 {
+    font-size: 22px;
+  }
+
+  .rating-buttons button {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .modal-content {
+    padding: 24px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 1024px) {
+  .card {
+    width: 700px;
+  }
 }

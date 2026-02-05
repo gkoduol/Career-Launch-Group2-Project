@@ -112,6 +112,19 @@ export default function App() {
   }
 
   async function handleUserFinished() {
+    setBusy("Building your taste profile...");
+    
+    // Build user preference vector from their likes
+    try {
+      await fetch(`http://localhost:8000/groups/${groupId.trim()}/user-vector`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+    } catch (e) {
+      console.error("Vector building failed", e);
+    }
+    
     setBusy("Waiting for group...");
     try {
       const data = await finishUser(groupId.trim(), userId);
@@ -119,17 +132,26 @@ export default function App() {
         setIsGroupFinished(true);
         handleBest();
       }
-    } catch (e) { console.error("Finish call failed", e); }
+    } catch (e) { 
+      console.error("Finish call failed", e); 
+    }
   }
 
   async function handleBest() {
     setBest(null);
-    setBusy("Finding best match…");
+    setBusy("Finding best match with ML...");
     try {
-      const data = await getBest(groupId.trim());
+      // Call the ML endpoint instead of the old one
+      const response = await fetch(`http://localhost:8000/groups/${groupId.trim()}/best-ml`);
+      const data = await response.json();
+      
       setBest(data.best?.item || null);
-    } catch { setIdle("Match failed."); }
-    finally { setIsLoading(false); }
+    } catch (error) {
+      console.error("Match failed", error);
+      setIdle("Match failed.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
