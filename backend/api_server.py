@@ -52,6 +52,9 @@ class FinishPayload(BaseModel):
     user_id: str
 
 # --- Helpers ---
+
+
+
 def make_code(n: int = 6) -> str:
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     return "".join(random.choice(chars) for _ in range(n))
@@ -131,18 +134,22 @@ def finish_user(group_id: str, payload: FinishPayload):
 @app.get("/groups/{group_id}/items")
 def get_items(group_id: str):
     try:
+        # Fetch MORE than we need (100 instead of 30)
         res = supabase.table("restaurants")\
             .select("business_id, name, address, city, stars, categories")\
-            .limit(1000)\
+            .limit(10000)\
             .execute()
         
         items_data = res.data
         random.shuffle(items_data)
-        selection = items_data[:30]
-
+        
         translated_items = []
         
-        for b in selection:
+        # Keep going until we have 30 restaurants with valid images
+        for b in items_data:
+            if len(translated_items) >= 30:
+                break  # We have enough!
+            
             biz_id = b.get("business_id")
             
             # Try to get photo from photos table
@@ -152,26 +159,28 @@ def get_items(group_id: str):
                 .limit(1)\
                 .execute()
             
-            final_image = None
+            image_url = None
             
             if photo_res.data:
                 photo = photo_res.data[0]
                 # Try different field names
-                final_image = (
+                image_url = (
                     photo.get("image_url") or 
                     photo.get("photo_url") or 
                     photo.get("url")
                 )
                 
-                # If photo_id exists, construct Yelp CDN URL
-                if not final_image and photo.get("photo_id"):
+                # Construct from photo_id if exists
+                if not image_url and photo.get("photo_id"):
                     photo_id = photo.get("photo_id")
-                    final_image = f"https://s3-media0.fl.yelpcdn.com/bphoto/{photo_id}/o.jpg"
+                    image_url = f"https://s3-media0.fl.yelpcdn.com/bphoto/{photo_id}/o.jpg"
             
-            # Fallback to consistent default
-            if not final_image:
-                final_image = get_consistent_fallback(biz_id)
+            # SKIP this restaurant if no valid image found
+            if not image_url:
+                logger.info(f"Skipping {b.get('name')} - no valid image")
+                continue
             
+            # Only add restaurants with valid images
             raw_categories = b.get("categories")
 
             yelp_style_data = {
@@ -180,16 +189,20 @@ def get_items(group_id: str):
                 "rating": b.get("stars"),
                 "categories": raw_categories,
                 "url": f"https://www.yelp.com/biz/{biz_id}" if biz_id else "#",
-                "image_url": final_image,
+                "image_url": image_url,
                 "location": {"display_address": [b.get("address"), b.get("city")]}
             }
             translated_items.append(normalize_business(yelp_style_data))
-
+        
+        logger.info(f"Selected {len(translated_items)} restaurants with valid images")
+        
         return {"items": translated_items}
+        
     except Exception as e:
+        logger.error(f"Error in get_items: {e}")
         return {"error": str(e), "items": []}
-
 @app.get("/groups/{group_id}/best")
+
 def best(group_id: str):
     res = supabase.table("ratings").select("*").eq("group_id", group_id).execute()
     ratings = res.data
@@ -378,18 +391,50 @@ def best_ml(group_id: str):
         if not best_restaurant:
             return {"error": "No suitable restaurant found"}
         
-        # Fetch photo
-        photo_res = supabase.table("photos")\
-            .select("image_url")\
-            .eq("business_id", best_restaurant["business_id"])\
-            .limit(1)\
-            .execute()
+        # Fetch photo - multi-step approach
+        final_image = None
         
-        image_url = None
-        if photo_res.data and photo_res.data[0].get("image_url"):
-            image_url = photo_res.data[0]["image_url"]
-        else:
-            image_url = get_consistent_fallback(best_restaurant["business_id"])
+        # Step 1: Try database
+        try:
+            photo_res = supabase.table("photos")\
+                .select("*")\
+                .eq("business_id", best_restaurant["business_id"])\
+                .limit(1)\
+                .execute()
+            
+            if photo_res.data:
+                photo = photo_res.data[0]
+                # Try different field names
+                final_image = (
+                    photo.get("image_url") or 
+                    photo.get("photo_url") or 
+                    photo.get("url")
+                )
+                
+                # If photo_id exists, construct Yelp CDN URL
+                if not final_image and photo.get("photo_id"):
+                    photo_id = photo.get("photo_id")
+                    final_image = f"https://s3-media0.fl.yelpcdn.com/bphoto/{photo_id}/o.jpg"
+        except Exception as e:
+            logger.warning(f"Database photo fetch failed: {e}")
+        
+        # Step 2: Try scraped_image column (if you added it)
+        if not final_image:
+            try:
+                rest_res = supabase.table("restaurants")\
+                    .select("scraped_image")\
+                    .eq("business_id", best_restaurant["business_id"])\
+                    .execute()
+                
+                if rest_res.data and rest_res.data[0].get("scraped_image"):
+                    final_image = rest_res.data[0]["scraped_image"]
+            except:
+                pass
+        
+        # Step 4: Fallback to consistent default
+        if not final_image:
+            logger.warning(f"No image found for {best_restaurant['business_id']}, using fallback")
+            final_image = get_consistent_fallback(best_restaurant["business_id"])
         
         return {
             "best": {
@@ -399,7 +444,7 @@ def best_ml(group_id: str):
                     "rating": best_restaurant["stars"],
                     "categories": best_restaurant["categories"],
                     "address": best_restaurant["address"],
-                    "image_url": image_url,
+                    "image_url": final_image,
                     "url": f"https://www.yelp.com/biz/{best_restaurant['business_id']}"
                 },
                 "score": float(best_restaurant["similarity"]),
