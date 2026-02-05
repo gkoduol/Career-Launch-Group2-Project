@@ -8,6 +8,7 @@ import os
 import random
 from pathlib import Path
 import logging
+import numpy as np
 
 # --- Setup & Config ---
 logger = logging.getLogger("uvicorn.error")
@@ -131,7 +132,7 @@ def finish_user(group_id: str, payload: FinishPayload):
 def get_items(group_id: str):
     try:
         res = supabase.table("restaurants")\
-            .select("business_id, name, address, city, stars, categories, photos(image_url)")\
+            .select("business_id, name, address, city, stars, categories")\
             .limit(1000)\
             .execute()
         
@@ -140,22 +141,44 @@ def get_items(group_id: str):
         selection = items_data[:30]
 
         translated_items = []
-# Inside your loop where you build translated_items:
+        
         for b in selection:
             biz_id = b.get("business_id")
-            photo_info = b.get("photos", [])
-            db_image = photo_info[0].get("image_url") if photo_info and isinstance(photo_info, list) else None
             
-            final_image = db_image if db_image else get_consistent_fallback(biz_id)
+            # Try to get photo from photos table
+            photo_res = supabase.table("photos")\
+                .select("*")\
+                .eq("business_id", biz_id)\
+                .limit(1)\
+                .execute()
             
-            # FIX: Handle categories properly
+            final_image = None
+            
+            if photo_res.data:
+                photo = photo_res.data[0]
+                # Try different field names
+                final_image = (
+                    photo.get("image_url") or 
+                    photo.get("photo_url") or 
+                    photo.get("url")
+                )
+                
+                # If photo_id exists, construct Yelp CDN URL
+                if not final_image and photo.get("photo_id"):
+                    photo_id = photo.get("photo_id")
+                    final_image = f"https://s3-media0.fl.yelpcdn.com/bphoto/{photo_id}/o.jpg"
+            
+            # Fallback to consistent default
+            if not final_image:
+                final_image = get_consistent_fallback(biz_id)
+            
             raw_categories = b.get("categories")
 
             yelp_style_data = {
                 "id": biz_id,
                 "name": b.get("name"),
                 "rating": b.get("stars"),
-                "categories": raw_categories,  # Use the formatted version
+                "categories": raw_categories,
                 "url": f"https://www.yelp.com/biz/{biz_id}" if biz_id else "#",
                 "image_url": final_image,
                 "location": {"display_address": [b.get("address"), b.get("city")]}
@@ -211,3 +234,182 @@ def add_rating(group_id: str, payload: RatingPayload):
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
+    
+@app.post("/groups/{group_id}/user-vector")
+def build_user_vector(group_id: str, payload: Dict[str, Any]):
+    """Build user preference vector from their liked restaurants"""
+    try:
+        user_id = payload.get("user_id")
+        logger.info(f"Building vector for user {user_id} in group {group_id}")
+        
+        # Get all restaurants this user liked (rating = 1)
+        ratings_res = supabase.table("ratings")\
+            .select("item_id")\
+            .eq("group_id", group_id)\
+            .eq("user_id", user_id)\
+            .eq("rating", 1)\
+            .execute()
+        
+        liked_items = [r["item_id"] for r in ratings_res.data]
+        logger.info(f"User liked {len(liked_items)} items")
+        
+        if not liked_items:
+            return {"error": "No liked items", "liked_count": 0}
+        
+        # Fetch embeddings for all liked restaurants
+        embeddings = []
+        for item_id in liked_items:
+            rest_res = supabase.table("restaurants")\
+                .select("embedding")\
+                .eq("business_id", item_id)\
+                .execute()
+            
+            if rest_res.data and rest_res.data[0].get("embedding"):
+                raw_embedding = rest_res.data[0]["embedding"]
+                
+                # PARSE: Convert string to actual array
+                if isinstance(raw_embedding, str):
+                    # Remove brackets and parse
+                    import json
+                    embedding_array = json.loads(raw_embedding)
+                elif isinstance(raw_embedding, list):
+                    embedding_array = raw_embedding
+                else:
+                    logger.warning(f"Unknown embedding type: {type(raw_embedding)}")
+                    continue
+                
+                embeddings.append(embedding_array)
+        
+        logger.info(f"Found {len(embeddings)} embeddings")
+        
+        if not embeddings:
+            return {"error": "No embeddings found for liked items"}
+        
+        # Convert to numpy array first, then calculate mean
+        embeddings_array = np.array(embeddings, dtype=np.float32)
+        user_vector = np.mean(embeddings_array, axis=0).tolist()
+        
+        logger.info(f"Created user vector with {len(user_vector)} dimensions")
+        
+        # Store user vector (as list, will be converted to vector by pgvector)
+        supabase.table("user_vectors").upsert({
+            "group_id": group_id,
+            "user_id": user_id,
+            "preference_vector": user_vector
+        }, on_conflict="group_id,user_id").execute()
+        
+        logger.info("Successfully stored user vector")
+        
+        return {
+            "ok": True,
+            "vector_dims": len(user_vector),
+            "liked_count": len(liked_items)
+        }
+        
+    except Exception as e:
+        logger.error(f"ERROR in build_user_vector: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/groups/{group_id}/best-ml")
+def best_ml(group_id: str):
+    """Find best restaurant using vector similarity"""
+    
+    try:
+        # Get all user preference vectors for this group
+        vectors_res = supabase.table("user_vectors")\
+            .select("preference_vector")\
+            .eq("group_id", group_id)\
+            .execute()
+        
+        if not vectors_res.data:
+            logger.warning("No user vectors found, using fallback method")
+            return best(group_id)
+        
+        # Parse and aggregate user vectors
+        user_vectors = []
+        for r in vectors_res.data:
+            raw_vector = r["preference_vector"]
+            
+            # Parse if string
+            if isinstance(raw_vector, str):
+                import json
+                vector_array = json.loads(raw_vector)
+            elif isinstance(raw_vector, list):
+                vector_array = raw_vector
+            else:
+                continue
+            
+            user_vectors.append(vector_array)
+        
+        if not user_vectors:
+            return best(group_id)
+        
+        # Average all user preference vectors
+        group_vector_array = np.array(user_vectors, dtype=np.float32)
+        group_vector = np.mean(group_vector_array, axis=0).tolist()
+        
+        # Get items already rated by the group
+        ratings_res = supabase.table("ratings")\
+            .select("item_id")\
+            .eq("group_id", group_id)\
+            .execute()
+        rated_items = {r["item_id"] for r in ratings_res.data}
+        
+        # Use pgvector to find most similar restaurants
+        result = supabase.rpc(
+            'match_restaurants',
+            {
+                'query_embedding': group_vector,
+                'match_threshold': 0.0,
+                'match_count': 50
+            }
+        ).execute()
+        
+        # Find first non-rated restaurant
+        best_restaurant = None
+        for restaurant in result.data:
+            if restaurant["business_id"] not in rated_items:
+                best_restaurant = restaurant
+                break
+        
+        if not best_restaurant:
+            return {"error": "No suitable restaurant found"}
+        
+        # Fetch photo
+        photo_res = supabase.table("photos")\
+            .select("image_url")\
+            .eq("business_id", best_restaurant["business_id"])\
+            .limit(1)\
+            .execute()
+        
+        image_url = None
+        if photo_res.data and photo_res.data[0].get("image_url"):
+            image_url = photo_res.data[0]["image_url"]
+        else:
+            image_url = get_consistent_fallback(best_restaurant["business_id"])
+        
+        return {
+            "best": {
+                "item": {
+                    "item_id": best_restaurant["business_id"],
+                    "name": best_restaurant["name"],
+                    "rating": best_restaurant["stars"],
+                    "categories": best_restaurant["categories"],
+                    "address": best_restaurant["address"],
+                    "image_url": image_url,
+                    "url": f"https://www.yelp.com/biz/{best_restaurant['business_id']}"
+                },
+                "score": float(best_restaurant["similarity"]),
+                "method": "ml_vector_similarity"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"ML matching error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Fallback to old method
+        return best(group_id)
